@@ -45,7 +45,7 @@ impl Default for SubrouRsParams {
             post_gain: FloatParam::new(
                 "Post Gain",
                 1.0,
-                FloatRange::Linear { min: 0.0, max: 1.0 },
+                FloatRange::Linear { min: 0.0, max: 5.0 },
             ),
             pitch: FloatParam::new(
                 "Pitch",
