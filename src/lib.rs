@@ -47,8 +47,8 @@ impl Default for SubrouRsParams {
                 1.0,
                 FloatRange::Skewed {
                     min: 0.0,
-                    max: util::db_to_gain(6.0),
-                    factor: FloatRange::gain_skew_factor(util::MINUS_INFINITY_DB, 6.0),
+                    max: util::db_to_gain(12.0),
+                    factor: FloatRange::gain_skew_factor(util::MINUS_INFINITY_DB, 12.0),
                 },
             )
             .with_smoother(SmoothingStyle::Logarithmic(10.0))
