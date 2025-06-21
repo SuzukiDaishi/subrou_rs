@@ -45,8 +45,16 @@ impl Default for SubrouRsParams {
             post_gain: FloatParam::new(
                 "Post Gain",
                 1.0,
-                FloatRange::Linear { min: 0.0, max: 5.0 },
-            ),
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: util::db_to_gain(6.0),
+                    factor: FloatRange::gain_skew_factor(util::MINUS_INFINITY_DB, 6.0),
+                },
+            )
+            .with_smoother(SmoothingStyle::Logarithmic(10.0))
+            .with_unit(" dB")
+            .with_value_to_string(formatters::v2s_f32_gain_to_db(2))
+            .with_string_to_value(formatters::s2v_f32_gain_to_db()),
             pitch: FloatParam::new(
                 "Pitch",
                 440.0,
