@@ -13,6 +13,8 @@ pub use envelope::{apply_gain_curve, envelope_follower};
 struct SubrouRs {
     params: Arc<SubrouRsParams>,
     sample_rate: f32,
+    // 追加: 位相を保持してバッファ境界や周波数変化時の不連続を防ぐ
+    phase: f32,
 }
 
 #[derive(Params)]
@@ -35,6 +37,7 @@ impl Default for SubrouRs {
         Self {
             params: Arc::new(SubrouRsParams::default()),
             sample_rate: 44100.0,
+            phase: 0.0, // 位相を 0 で初期化
         }
     }
 }
@@ -59,7 +62,8 @@ impl Default for SubrouRsParams {
                 "Pitch",
                 440.0,
                 FloatRange::Linear { min: 10.0, max: 2000.0 },
-            ),
+            )
+            .with_smoother(SmoothingStyle::Linear(20.0)),
             out_channel: IntParam::new(
                 "Output Channel",
                 0,
@@ -157,14 +161,27 @@ impl Plugin for SubrouRs {
         // Envelope from mono input
         let curve = envelope_follower(&mono, 10.0, 10.0, self.sample_rate);
 
-        // Generate saw wave with envelope gain
-        let freq = self.params.pitch.smoothed.next();
-        let post = self.params.post_gain.smoothed.next();
+        // サンプルごとに平滑化された周波数・ゲインを取得し、位相を累積する
         let mut saw = Vec::with_capacity(num_samples);
+        let mut phase = self.phase; // 0.0..1.0 の範囲で管理（周期単位）
         for (i, gain) in curve.iter().enumerate() {
-            let phase = 2.0 * std::f32::consts::PI * freq * (i as f32) / self.sample_rate;
-            saw.push(saw_wave(phase, 3) * *gain * post);
+            let freq = self.params.pitch.smoothed.next();
+            let post = self.params.post_gain.smoothed.next();
+
+            // 位相インクリメント（周期あたりの進み量）
+            phase += freq / self.sample_rate;
+            // 0..1 にラップ
+            if phase >= 1.0 {
+                phase -= phase.floor();
+            } else if phase < 0.0 {
+                phase += (-phase).ceil();
+            }
+
+            let phase_rad = 2.0 * std::f32::consts::PI * phase;
+            saw.push(saw_wave(phase_rad, 3) * *gain * post);
         }
+        // 次の呼び出しに位相を引き継ぐ
+        self.phase = phase;
 
         let out_ch = self.params.out_channel.value();
         if out_ch == 0 {
